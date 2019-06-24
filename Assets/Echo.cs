@@ -83,7 +83,6 @@ public class Echo : MonoBehaviour
                 //即将接收的数据大于readBuff缓冲区 但每次最多只能接收和readBuff数组一样多的字节流的情况
                 //这里添加一下代码就好了 然后提交到GitHub
                 //嘿嘿 在是一次vs提交信息  enit by 远程仓库
-                //嘿嘿 在是一次vs提交信息 enit by 本地仓库
                 return;
             }
             return;
