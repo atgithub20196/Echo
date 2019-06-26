@@ -30,7 +30,12 @@ public class Echo : MonoBehaviour
     public Text text;
     //接收缓冲区
     byte[] readBuff = new byte[1024];
-    ///已接收的消息体的总长度
+    byte[] sendBytes = new byte[1024];
+    //缓冲区偏移值
+    int readIdx = 0;
+    //缓冲区剩余长度
+    int length = 0;
+    //已接收的消息体的总长度
     int buffCount = 0;
     //显示文字
     string recvStr = "";
@@ -73,7 +78,9 @@ public class Echo : MonoBehaviour
     {
         if (buffCount <= 2) return;
         //如果是完整的就去处理它
-        UInt16 bodyLength = BitConverter.ToUInt16(readBuff, 0);
+        //UInt16 bodyLength = BitConverter.ToUInt16(readBuff, 0);
+        UInt16 bodyLength = (UInt16)((readBuff[1] << 8) | readBuff[0]);//小端模式解析
+        Debug.Log("[recv] bodyLength=" + bodyLength);
         //判断消息体长度
         if (buffCount < 2 + bodyLength)
         {
@@ -104,6 +111,7 @@ public class Echo : MonoBehaviour
         //继续读取消息
         OnReceiveData();
     }
+    Queue<ByteArray> writeQueue = new Queue<ByteArray>();
     //点击发送按钮
     public void Send()
     {
@@ -112,13 +120,54 @@ public class Echo : MonoBehaviour
         byte[] bodyBytes = System.Text.Encoding.UTF8.GetBytes(sendStr);
         UInt16 len = (UInt16)bodyBytes.Length;
         byte[] lenBytes = BitConverter.GetBytes(len);
-        //把bodyBytes接在lenBytes得后面并返回一个新得数组
-        byte[] sendBytes = lenBytes.Concat(bodyBytes).ToArray();
-        int count = sendBytes.Length;
-        socket.Send(sendBytes);
+        //大小端
+        if (!BitConverter.IsLittleEndian)
+        {
+            Debug.Log("[Send] Reverse lenBytes");
+            lenBytes.Reverse();
+        }
+        //把bodyBytes接在lenBytes的后面，并返回一个新得数组
+        sendBytes = lenBytes.Concat(bodyBytes).ToArray();
+        ByteArray ba = new ByteArray(sendBytes);
+        int count = 0;
+        lock (writeQueue)
+        {
+            writeQueue.Enqueue(ba);
+            count = writeQueue.Count;
+        }
+        if(writeQueue.Count==1)
+            socket.BeginSend(ba.bytes, ba.readIdx, ba.length, 0, SendCallback, socket);
+        Debug.Log("[Send] " + BitConverter.ToString(sendBytes));
+    }
+    public void SendCallback(IAsyncResult ar)
+    {
+
+        //获取state
+        Socket socket = (Socket)ar.AsyncState;
+        //EndSend的处理
+        int count = socket.EndSend(ar);
+        Debug.Log("Socket Send succ " + count);
+        ByteArray ba;
+        lock (writeQueue)
+        {
+             ba= writeQueue.First();
+        }
+        ba.readIdx += count;
+        if (ba.length == count)//发送完整
+        {
+            lock(writeQueue){
+                writeQueue.Dequeue();
+                ba = writeQueue.First();
+            }
+        }
+        if (ba!=null)
+        {
+            socket.BeginSend(sendBytes, readIdx, length, 0, SendCallback, socket);
+        }
     }
     public void Update()
     {
         text.text = recvStr;
     }
+   
 }

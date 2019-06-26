@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Async.cs" />
+    <Compile Include="Assets\ByteArray.cs" />
     <Compile Include="Assets\Echo.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>H:/Work/UnitySocket/Chapter1/Echo/Echo/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>
